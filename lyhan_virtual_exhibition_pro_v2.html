@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#190b0d">
+<title>LYHAN — The Reverie | Virtual Exhibition</title>
+<style>
+:root{
+  --bg:#12090b;--panel:#211114;--panel2:#2b171a;--gold:#c9a36a;
+  --gold2:#ecd2a0;--cream:#f2e6d2;--muted:#bba99a;--line:#65413a;
+}
+*{box-sizing:border-box}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--cream);font-family:Georgia,"Times New Roman",serif}
+button,select,input{font:inherit}
+#app{height:100dvh;display:flex;flex-direction:column;background:radial-gradient(ellipse at 50% 0%,#3a171b 0%,#160b0d 58%,#0d0708 100%)}
+.topbar{min-height:66px;padding:10px 18px;display:flex;align-items:center;justify-content:space-between;gap:12px;border-bottom:1px solid #6e493b;background:linear-gradient(90deg,#190b0d,#321619,#190b0d);z-index:2}
+.brand{min-width:0}
+.brand strong{display:block;color:var(--gold2);font-size:clamp(14px,2vw,20px);letter-spacing:.19em;text-transform:uppercase;white-space:nowrap}
+.brand span{display:block;color:#c4a98b;font:10px Arial,sans-serif;letter-spacing:.25em;margin-top:4px}
+.top-actions{display:flex;gap:8px;align-items:center}
+#stage{position:relative;flex:1;min-height:180px;overflow:hidden}
+#stage canvas{display:block;width:100%;height:100%;touch-action:none;outline:none}
+.hint{position:absolute;left:14px;top:14px;max-width:min(330px,70vw);padding:9px 12px;border:1px solid #79563e;border-radius:3px;background:#160b0dd9;color:#e4d1b4;font:11px/1.5 Arial,sans-serif;pointer-events:none}
+.status{position:absolute;right:14px;top:14px;padding:8px 10px;background:#160b0dd9;border:1px solid #79563e;color:var(--gold2);font:10px Arial,sans-serif;letter-spacing:.12em;text-transform:uppercase;pointer-events:none}
+.controls{z-index:2;background:linear-gradient(180deg,#2b1518,#180c0e);border-top:1px solid #76513e;padding:11px 14px calc(11px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:10px}
+.control-row{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:8px}
+.group-label{font:10px Arial,sans-serif;color:#c6a982;letter-spacing:.13em;text-transform:uppercase;margin:0 3px}
+button,.select-wrap select,.upload-label{border:1px solid #8b6848;background:linear-gradient(#4a2928,#291517);color:#f4e4c8;border-radius:3px;padding:9px 12px;font:11px Arial,sans-serif;letter-spacing:.04em;cursor:pointer;transition:.15s}
+button:hover,.upload-label:hover{border-color:#efd19a;background:linear-gradient(#674034,#3b1c1e)}
+button.active{background:linear-gradient(#c6a06a,#8c603c);color:#1b0d0d;border-color:#f0d6a6;font-weight:bold}
+button:disabled{opacity:.45;cursor:not-allowed}
+select{outline:none}
+.upload-label{display:inline-flex;align-items:center;gap:6px}
+input[type=file]{display:none}
+.wall-picker{display:flex;align-items:center;gap:7px;flex-wrap:wrap;justify-content:center}
+.wall-picker select{max-width:150px}
+.small-note{font:10px/1.4 Arial,sans-serif;color:#b8a18a;text-align:center}
+#toast{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);background:#170b0df2;border:1px solid var(--gold);color:#f4dfbb;padding:9px 13px;font:11px Arial,sans-serif;opacity:0;transition:opacity .2s;pointer-events:none;max-width:90%;text-align:center}
+#toast.show{opacity:1}
+
+.extra-tools{display:flex;justify-content:center;align-items:center;gap:10px;flex-wrap:wrap}
+.tool-field{display:flex;align-items:center;gap:6px;font:10px Arial,sans-serif;color:#d8c09d}
+.tool-field input[type=range]{width:82px;accent-color:#c9a36a}
+.tool-field output{min-width:30px;color:#f4dfbb}
+
+@media(max-width:650px){
+ .topbar{min-height:55px;padding:8px 11px}
+ .brand strong{font-size:13px;letter-spacing:.12em}
+ .brand span{font-size:8px}
+ .top-actions button{padding:8px 9px;font-size:10px}
+ .controls{padding:8px 6px calc(8px + env(safe-area-inset-bottom));gap:7px}
+ .control-row{gap:5px}
+ button,.select-wrap select,.upload-label{padding:8px 8px;font-size:10px}
+ .group-label{font-size:9px}.tool-field input[type=range]{width:65px}
+ .hint{font-size:10px;top:8px;left:8px;padding:7px 9px}
+ .status{top:auto;bottom:9px;right:8px;font-size:9px}
+}
+</style>
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}
+</script>
+</head>
+<body>
+<div id="app">
+  <header class="topbar">
+    <div class="brand">
+      <strong>LYHAN — THE REVERIE</strong>
+      <span>VIRTUAL EXHIBITION · A ROOM OF MEMORIES</span>
+    </div>
+    <div class="top-actions">
+      <button id="resetBtn" title="Đưa camera về vị trí ban đầu">↺ Đặt lại</button>
+    </div>
+  </header>
+
+  <main id="stage">
+    <div class="hint">Kéo để xoay · Chụm hai ngón để phóng to · Chọn ảnh / vật thể để chỉnh sửa</div>
+    <div class="status" id="viewStatus">GÓC NHÌN 360°</div>
+    <div id="toast"></div>
+  </main>
+
+  <section class="controls">
+    <div class="control-row">
+      <span class="group-label">Không gian</span>
+      <button id="threeBtn" class="active">3 mặt tường</button>
+      <button id="fourBtn">4 mặt tường</button>
+      <span class="group-label">Camera</span>
+      <button id="frontBtn">Trực diện</button>
+      <button id="orbitBtn" class="active">Xoay 360°</button>
+    </div>
+    <div class="control-row">
+      <div class="wall-picker">
+        <span class="group-label">Chọn tường</span>
+        <select id="wallSelect" aria-label="Chọn bức tường">
+          <option value="back">Tường chính giữa</option>
+          <option value="left">Tường bên trái</option>
+          <option value="right">Tường bên phải</option>
+          <option value="front">Mặt trước (kính)</option>
+        </select>
+        <label class="upload-label" for="imageInput">＋ Tải ảnh lên</label>
+        <input id="imageInput" type="file" accept="image/*">
+        <button id="clearBtn">Xóa ảnh tường</button>
+      </div>
+    </div>
+    <div class="control-row">
+      <span class="group-label">Đồ trang trí</span>
+      <label class="upload-label" for="objectInput">＋ Thêm PNG nền trong suốt</label>
+      <input id="objectInput" type="file" accept="image/png,image/webp,image/*">
+      <button id="removeObjectBtn">Xóa vật thể chọn</button>
+      <label class="tool-field">Xóa nền màu <input id="keyColor" type="color" value="#ffffff"></label>
+      <label class="tool-field">Độ nhạy <input id="keyTolerance" type="range" min="0" max="100" value="28"></label>
+      <button id="removeBgBtn">Áp dụng xóa nền</button>
+      <label class="upload-label" for="ceilingInput">⌃ Thay ảnh trần</label>
+      <input id="ceilingInput" type="file" accept="image/*">
+    </div>
+    <div class="control-row">
+      <span class="group-label">Bố trí không gian</span>
+      <button id="freeMoveBtn" class="active">Di chuyển tự do</button>
+      <button id="addLightBtn">＋ Thêm đèn</button>
+      <button id="removeLightBtn">Xóa đèn chọn</button>
+      <button id="addWallBtn">＋ Thêm tường tùy chỉnh</button>
+    </div>
+    <div class="extra-tools">
+      <span class="group-label">Vị trí tường mới</span>
+      <label class="tool-field">X <input id="wallX" type="range" min="-8" max="8" value="0"><output id="wallXOut">0</output></label>
+      <label class="tool-field">Y <input id="wallY" type="range" min="0" max="8" value="3.5"><output id="wallYOut">3.5</output></label>
+      <label class="tool-field">Z <input id="wallZ" type="range" min="-6" max="6" value="0"><output id="wallZOut">0</output></label>
+      <label class="tool-field">Góc <input id="wallAngle" type="range" min="-180" max="180" value="0"><output id="wallAngleOut">0°</output></label>
+    </div>
+    <div class="extra-tools">
+      <span class="group-label">Kích thước phòng</span>
+      <label class="tool-field">Rộng <input id="widthRange" type="range" min="75" max="130" value="100"><output id="widthOut">100%</output></label>
+      <label class="tool-field">Cao <input id="heightRange" type="range" min="75" max="130" value="100"><output id="heightOut">100%</output></label>
+      <label class="tool-field">Sâu <input id="depthRange" type="range" min="75" max="130" value="100"><output id="depthOut">100%</output></label>
+      <span class="group-label">Vật thể chọn</span>
+      <label class="tool-field">Cỡ <input id="objectSize" type="range" min="30" max="220" value="100"><output id="objectSizeOut">100%</output></label>
+      <label class="tool-field">Xoay <input id="objectRotation" type="range" min="-180" max="180" value="0"><output id="objectRotationOut">0°</output></label>
+    </div>
+    <div class="small-note">Chọn “Di chuyển tự do” để kéo vật thể khắp không gian phòng; có thể kéo cả đèn. Xóa nền màu phù hợp ảnh có nền đơn sắc. Tường mới đặt theo tọa độ X/Y/Z và góc xoay. Các thay đổi chỉ lưu trong phiên hiện tại.</div>
+  </section>
+</div>
+
+<script type="module">
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+
+const stage = document.getElementById("stage");
+const scene = new THREE.Scene();
+scene.background = new THREE.Color("#160c0e");
+
+const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 100);
+camera.position.set(0, 4.4, 17.8);
+
+const renderer = new THREE.WebGLRenderer({antialias:true, alpha:false});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.15;
+stage.appendChild(renderer.domElement);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.minDistance = 8;
+controls.maxDistance = 26;
+controls.maxPolarAngle = Math.PI * 0.88;
+controls.target.set(0, 3.2, 0);
+controls.enabled = true;
+
+scene.add(new THREE.HemisphereLight(0xffe8cf, 0x281015, 2.0));
+const keyLight = new THREE.PointLight(0xffd7a0, 95, 35);
+keyLight.position.set(0, 7.5, 1);
+scene.add(keyLight);
+const leftLight = new THREE.PointLight(0xffc18a, 45, 22);
+leftLight.position.set(-5, 5, 3);
+scene.add(leftLight);
+const rightLight = new THREE.PointLight(0xffc18a, 45, 22);
+rightLight.position.set(5, 5, 3);
+scene.add(rightLight);
+
+const room = new THREE.Group();
+scene.add(room);
+
+const W = 12, H = 7.2, D = 8;
+const wallMeshes = {};
+const defaultMaterials = {};
+const uploadedTextures = {};
+const gold = new THREE.MeshStandardMaterial({color:0xb88b50, metalness:.72, roughness:.32});
+const darkGold = new THREE.MeshStandardMaterial({color:0x624126, metalness:.55, roughness:.4});
+const burgundy = new THREE.MeshStandardMaterial({color:0x481b20, roughness:.82});
+const floorMat = new THREE.MeshStandardMaterial({color:0x3a2020, roughness:.38, metalness:.15});
+const ceilingMat = new THREE.MeshStandardMaterial({color:0x291316, roughness:.8, side:THREE.DoubleSide});
+
+function addBox(name, size, pos, material, parent=room){
+  const mesh = new THREE.Mesh(new THREE.BoxGeometry(...size), material);
+  mesh.name=name; mesh.position.set(...pos); parent.add(mesh); return mesh;
+}
+function addFrame(parent, width, height, z, material=gold){
+  const t=.12;
+  const pieces=[
+    [[width,t,.09],[0,height/2,z]],
+    [[width,t,.09],[0,-height/2,z]],
+    [[t,height,.09],[-width/2,0,z]],
+    [[t,height,.09],[width/2,0,z]]
+  ];
+  pieces.forEach(([s,p])=>{const m=new THREE.Mesh(new THREE.BoxGeometry(...s),material);m.position.set(...p);parent.add(m);});
+}
+function makeWall(key, width, height, position, rotationY, color){
+  const group=new THREE.Group();
+  group.position.set(...position);
+  group.rotation.y=rotationY;
+  room.add(group);
+  const mat=new THREE.MeshStandardMaterial({color,roughness:.78,side:THREE.DoubleSide});
+  const panel=new THREE.Mesh(new THREE.PlaneGeometry(width,height),mat);
+  panel.name=key+"-image-surface";
+  group.add(panel);
+  addFrame(group,width+.18,height+.18,-.045,gold);
+  // inner ornamental inset
+  addFrame(group,width-.42,height-.42,.018,darkGold);
+  wallMeshes[key]={group,panel,baseMaterial:mat};
+  defaultMaterials[key]=mat;
+  return group;
+}
+
+// Floor, ceiling and decorative perimeter
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(W,D),floorMat);
+floor.rotation.x=-Math.PI/2; floor.position.set(0,0,0); room.add(floor);
+const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(W,D),ceilingMat);
+ceiling.rotation.x=Math.PI/2; ceiling.position.set(0,H,0); room.add(ceiling);
+
+makeWall("back",W,H,[0,H/2,-D/2],0,0x642c30);
+makeWall("left",D,H,[-W/2,H/2,0],Math.PI/2,0x51252a);
+makeWall("right",D,H,[W/2,H/2,0],-Math.PI/2,0x51252a);
+
+// The front wall is glass-like: visible in 4-wall mode, hidden in 3-wall mode.
+const frontGroup=new THREE.Group();
+frontGroup.position.set(0,H/2,D/2);
+room.add(frontGroup);
+const glassMat=new THREE.MeshPhysicalMaterial({
+  color:0xd7b98d,transparent:true,opacity:.13,roughness:.12,
+  metalness:.2, transmission:.25, side:THREE.DoubleSide, depthWrite:false
+});
+const glass=new THREE.Mesh(new THREE.PlaneGeometry(W,H),glassMat);
+glass.name="front-glass";
+frontGroup.add(glass);
+addFrame(frontGroup,W+.18,H+.18,-.06,gold);
+wallMeshes.front={group:frontGroup,panel:glass,baseMaterial:glassMat};
+
+// Floor trims, ceiling trim and gold decorative pillars
+[-W/2+.18,W/2-.18].forEach(x=>{
+  addBox("corner-pillar",[.22,H,.22],[x,H/2,-D/2+.16],gold);
+  addBox("front-corner-pillar",[.22,H,.22],[x,H/2,D/2-.16],gold);
+});
+addBox("back-baseboard",[W,.22,.22],[0,.18,-D/2+.08],darkGold);
+addBox("left-baseboard",[.22,.22,D],[-W/2+.08,.18,0],darkGold);
+addBox("right-baseboard",[.22,.22,D],[W/2-.08,.18,0],darkGold);
+addBox("back-cornice",[W,.2,.22],[0,H-.12,-D/2+.08],gold);
+addBox("left-cornice",[.22,.2,D],[-W/2+.08,H-.12,0],gold);
+addBox("right-cornice",[.22,.2,D],[W/2-.08,H-.12,0],gold);
+
+
+// A subtle central rug on the floor
+const rug=new THREE.Mesh(new THREE.PlaneGeometry(5.2,3.1),new THREE.MeshStandardMaterial({color:0x541e27,roughness:.9}));
+rug.rotation.x=-Math.PI/2; rug.position.set(0,.012,.15); room.add(rug);
+const rugEdge=new THREE.Mesh(new THREE.RingGeometry(1.75,1.82,64),gold);
+rugEdge.rotation.x=-Math.PI/2; rugEdge.position.set(0,.025,.15); rugEdge.scale.set(1.42,.82,1); room.add(rugEdge);
+
+// Small decorative plinths in front of the back wall
+for(const x of [-3.7,0,3.7]){
+  addBox("display-plinth",[1.15,.65,.8],[x,.33,-2.35],darkGold);
+  addBox("plinth-top",[1.3,.09,.92],[x,.7,-2.35],gold);
+}
+
+
+// Uploadable ceiling image, mapped onto the ceiling plane.
+const ceilingInput=document.getElementById("ceilingInput");
+let ceilingTexture=null;
+ceilingInput.addEventListener("change",e=>{
+  const file=e.target.files?.[0]; if(!file)return;
+  const url=URL.createObjectURL(file);
+  new THREE.TextureLoader().load(url,tex=>{
+    tex.colorSpace=THREE.SRGBColorSpace;
+    if(ceilingTexture)ceilingTexture.dispose();
+    ceilingTexture=tex;
+    ceiling.material=new THREE.MeshStandardMaterial({map:tex,side:THREE.DoubleSide,roughness:.8});
+    URL.revokeObjectURL(url); toast("Đã thay ảnh trần nhà");
+  },undefined,()=>{URL.revokeObjectURL(url);toast("Không đọc được ảnh trần");});
+  e.target.value="";
+});
+
+// Transparent decorative image planes. They are children of the chosen wall,
+// so dragging remains aligned with that wall from any camera angle.
+const objectInput=document.getElementById("objectInput");
+const decorativeObjects=[];
+let selectedObject=null;
+const raycaster=new THREE.Raycaster();
+const pointer=new THREE.Vector2();
+const dragPlane=new THREE.Plane();
+const dragPoint=new THREE.Vector3();
+let isDraggingObject=false;
+let dragOffset=new THREE.Vector3();
+let placementMode="free";
+let selectedLight=null;
+const userLights=[];
+const customWalls=[];
+const dragWorldPlane=new THREE.Plane();
+const dragWorldPoint=new THREE.Vector3();
+const tempCameraDirection=new THREE.Vector3();
+const lightMarkerMaterial=new THREE.MeshBasicMaterial({color:0xffd58a});
+
+function currentWallKey(){return wallSelect.value==="front"?"front":wallSelect.value;}
+function selectObject(obj){
+  selectedObject=obj;
+  const size=obj?Math.round(obj.userData.baseScale*100):100;
+  document.getElementById("objectSize").value=size;
+  document.getElementById("objectSizeOut").value=size+"%";
+  document.getElementById("objectRotation").value=obj?Math.round(obj.rotation.z*180/Math.PI):0;
+  document.getElementById("objectRotationOut").value=(obj?Math.round(obj.rotation.z*180/Math.PI):0)+"°";
+}
+objectInput.addEventListener("change",e=>{
+  const file=e.target.files?.[0];if(!file)return;
+  const key=currentWallKey();
+  if(key==="front" && roomMode!=="four"){toast("Bật chế độ 4 mặt để đặt vật thể lên mặt trước");return;}
+  const url=URL.createObjectURL(file);
+  new THREE.TextureLoader().load(url,tex=>{
+    tex.colorSpace=THREE.SRGBColorSpace;
+    const aspect=tex.image.width/tex.image.height;
+    const h=2.2,w=h*aspect;
+    const mat=new THREE.MeshBasicMaterial({map:tex,transparent:true,side:THREE.DoubleSide,depthWrite:false});
+    const obj=new THREE.Mesh(new THREE.PlaneGeometry(w,h),mat);
+    obj.name="uploaded-decoration";
+    obj.position.set(0,3.0,0);
+    obj.userData={wallKey:key,baseScale:1,texture:tex,free:true};
+    scene.add(obj);
+    obj.quaternion.copy(camera.quaternion);
+    decorativeObjects.push(obj);
+    selectObject(obj);
+    URL.revokeObjectURL(url);
+    toast("Đã thêm vật thể. Kéo trực tiếp để di chuyển.");
+  },undefined,()=>{URL.revokeObjectURL(url);toast("Không đọc được ảnh");});
+  e.target.value="";
+});
+document.getElementById("removeBgBtn").addEventListener("click",()=>{
+  if(!selectedObject?.userData.texture){toast("Hãy chọn một vật thể trước");return;}
+  const image=selectedObject.userData.texture.image;
+  const canvas=document.createElement("canvas");
+  canvas.width=image.naturalWidth||image.videoWidth||image.width;
+  canvas.height=image.naturalHeight||image.videoHeight||image.height;
+  const ctx=canvas.getContext("2d",{willReadFrequently:true});
+  ctx.drawImage(image,0,0,canvas.width,canvas.height);
+  const data=ctx.getImageData(0,0,canvas.width,canvas.height);
+  const hex=document.getElementById("keyColor").value;
+  const target=[parseInt(hex.slice(1,3),16),parseInt(hex.slice(3,5),16),parseInt(hex.slice(5,7),16)];
+  const tolerance=Number(document.getElementById("keyTolerance").value)*2.55;
+  for(let i=0;i<data.data.length;i+=4){
+    const d=Math.sqrt((data.data[i]-target[0])**2+(data.data[i+1]-target[1])**2+(data.data[i+2]-target[2])**2);
+    if(d<tolerance)data.data[i+3]=0;
+  }
+  ctx.putImageData(data,0,0);
+  const cleaned=new THREE.CanvasTexture(canvas);
+  cleaned.colorSpace=THREE.SRGBColorSpace;
+  selectedObject.material.map=cleaned;
+  selectedObject.material.needsUpdate=true;
+  selectedObject.userData.texture=cleaned;
+  toast("Đã xóa màu nền đã chọn. Kết quả tùy ảnh gốc.");
+});
+document.getElementById("removeObjectBtn").addEventListener("click",()=>{
+  if(!selectedObject){toast("Chưa chọn vật thể nào");return;}
+  const obj=selectedObject;
+  obj.parent?.remove(obj);
+  obj.userData.texture?.dispose();
+  const i=decorativeObjects.indexOf(obj);if(i>=0)decorativeObjects.splice(i,1);
+  selectObject(null);toast("Đã xóa vật thể");
+});
+document.getElementById("objectSize").addEventListener("input",e=>{
+  if(!selectedObject)return;
+  const v=Number(e.target.value)/100;
+  selectedObject.scale.setScalar(v);
+  document.getElementById("objectSizeOut").value=e.target.value+"%";
+});
+document.getElementById("objectRotation").addEventListener("input",e=>{
+  if(!selectedObject)return;
+  selectedObject.rotation.z=THREE.MathUtils.degToRad(Number(e.target.value));
+  document.getElementById("objectRotationOut").value=e.target.value+"°";
+});
+function setPointerFromEvent(event){
+  const rect=renderer.domElement.getBoundingClientRect();
+  pointer.x=((event.clientX-rect.left)/rect.width)*2-1;
+  pointer.y=-((event.clientY-rect.top)/rect.height)*2+1;
+  raycaster.setFromCamera(pointer,camera);
+}
+renderer.domElement.addEventListener("pointerdown",event=>{
+  setPointerFromEvent(event);
+  const hits=raycaster.intersectObjects([...decorativeObjects,...userLights.map(l=>l.marker)],false);
+  if(hits.length){
+    const picked=hits[0].object;
+    if(picked.userData.lightRef){
+      selectedLight=picked.userData.lightRef;
+      selectObject(null);
+    }else{
+      selectObject(picked);
+      selectedLight=null;
+    }
+    const target=selectedLight?selectedLight.marker:selectedObject;
+    camera.getWorldDirection(tempCameraDirection);
+    dragWorldPlane.setFromNormalAndCoplanarPoint(tempCameraDirection,target.getWorldPosition(new THREE.Vector3()));
+    if(raycaster.ray.intersectPlane(dragWorldPlane,dragWorldPoint)){
+      dragOffset.copy(target.position).sub(target.parent ? target.parent.worldToLocal(dragWorldPoint.clone()) : dragWorldPoint);
+      isDraggingObject=true;
+      controls.enabled=false;
+      renderer.domElement.setPointerCapture(event.pointerId);
+      event.preventDefault();
+    }
+  } else if(!isDraggingObject){selectObject(null);selectedLight=null;}
+});
+renderer.domElement.addEventListener("pointermove",event=>{
+  if(!isDraggingObject)return;
+  setPointerFromEvent(event);
+  if(raycaster.ray.intersectPlane(dragWorldPlane,dragWorldPoint)){
+    const target=selectedLight?selectedLight.marker:selectedObject;
+    if(!target)return;
+    const local=target.parent?target.parent.worldToLocal(dragWorldPoint.clone()):dragWorldPoint.clone();
+    target.position.copy(local.add(dragOffset));
+    // Keep movable items within a generous room-sized volume.
+    target.position.x=THREE.MathUtils.clamp(target.position.x,-7.5,7.5);
+    target.position.y=THREE.MathUtils.clamp(target.position.y,.15,7.8);
+    target.position.z=THREE.MathUtils.clamp(target.position.z,-5.5,5.5);
+    if(selectedLight)selectedLight.light.position.copy(target.position);
+  }
+});
+function endObjectDrag(){if(isDraggingObject){isDraggingObject=false;controls.enabled=(cameraMode==="orbit");}}
+renderer.domElement.addEventListener("pointerup",endObjectDrag);
+renderer.domElement.addEventListener("pointercancel",endObjectDrag);
+
+// Free movement mode: uploaded decorations can be dragged anywhere in the room volume.
+document.getElementById("freeMoveBtn").addEventListener("click",()=>{
+  placementMode="free";
+  document.getElementById("freeMoveBtn").classList.add("active");
+  toast("Chế độ di chuyển tự do trong phòng");
+});
+
+// Add movable point lights; drag the small glowing marker to reposition the light.
+document.getElementById("addLightBtn").addEventListener("click",()=>{
+  const light=new THREE.PointLight(0xffd19a,65,14);
+  light.position.set(0,4,0);
+  scene.add(light);
+  const marker=new THREE.Mesh(new THREE.SphereGeometry(.16,16,12),lightMarkerMaterial.clone());
+  marker.position.copy(light.position);
+  marker.userData.lightRef={light,marker};
+  marker.userData.lightRef= {light,marker};
+  scene.add(marker);
+  const record={light,marker};
+  marker.userData.lightRef=record;
+  userLights.push(record);
+  selectedLight=record;
+  toast("Đã thêm đèn. Kéo chấm sáng để đổi vị trí.");
+});
+document.getElementById("removeLightBtn").addEventListener("click",()=>{
+  if(!selectedLight){toast("Chưa chọn đèn nào");return;}
+  scene.remove(selectedLight.light);scene.remove(selectedLight.marker);
+  const idx=userLights.indexOf(selectedLight);if(idx>=0)userLights.splice(idx,1);
+  selectedLight=null;toast("Đã xóa đèn chọn");
+});
+
+// Add extra freestanding walls with editable placement sliders.
+["wallX","wallY","wallZ","wallAngle"].forEach(id=>{
+  const el=document.getElementById(id),out=document.getElementById(id+"Out");
+  el.addEventListener("input",()=>out.value=el.value+(id==="wallAngle"?"°":""));
+});
+document.getElementById("addWallBtn").addEventListener("click",()=>{
+  const x=Number(document.getElementById("wallX").value);
+  const y=Number(document.getElementById("wallY").value);
+  const z=Number(document.getElementById("wallZ").value);
+  const angle=THREE.MathUtils.degToRad(Number(document.getElementById("wallAngle").value));
+  const group=new THREE.Group();group.position.set(x,y,z);group.rotation.y=angle;scene.add(group);
+  const panel=new THREE.Mesh(new THREE.PlaneGeometry(5,3.8),new THREE.MeshStandardMaterial({color:0x642c30,side:THREE.DoubleSide,roughness:.8}));
+  group.add(panel);
+  const frameMat=new THREE.MeshStandardMaterial({color:0xc9a36a,metalness:.6,roughness:.35});
+  const frame=[[[5.15,.1,.08],[0,1.95,0]],[[5.15,.1,.08],[0,-1.95,0]],[[.1,3.9,.08],[-2.55,0,0]],[[.1,3.9,.08],[2.55,0,0]]];
+  frame.forEach(([size,pos])=>{const m=new THREE.Mesh(new THREE.BoxGeometry(...size),frameMat);m.position.set(...pos);group.add(m);});
+  customWalls.push(group);toast("Đã thêm một bức tường tùy chỉnh");
+});
+
+// Resize the whole room proportionally in each axis.
+const dimensionControls=[
+  ["widthRange","widthOut","x"],["heightRange","heightOut","y"],["depthRange","depthOut","z"]
+];
+dimensionControls.forEach(([inputId,outId,axis])=>{
+  const input=document.getElementById(inputId),out=document.getElementById(outId);
+  input.addEventListener("input",()=>{
+    const value=Number(input.value);
+    room.scale[axis]=value/100;
+    out.value=value+"%";
+  });
+});
+
+
+let roomMode="three";
+let cameraMode="orbit";
+const threeBtn=document.getElementById("threeBtn");
+const fourBtn=document.getElementById("fourBtn");
+const frontBtn=document.getElementById("frontBtn");
+const orbitBtn=document.getElementById("orbitBtn");
+const wallSelect=document.getElementById("wallSelect");
+const imageInput=document.getElementById("imageInput");
+const toastEl=document.getElementById("toast");
+let toastTimer;
+function toast(message){
+  toastEl.textContent=message;toastEl.classList.add("show");
+  clearTimeout(toastTimer);toastTimer=setTimeout(()=>toastEl.classList.remove("show"),2600);
+}
+function setMode(mode){
+  roomMode=mode;
+  frontGroup.visible=(mode==="four");
+  threeBtn.classList.toggle("active",mode==="three");
+  fourBtn.classList.toggle("active",mode==="four");
+  wallSelect.querySelector('option[value="front"]').disabled=(mode!=="four");
+  if(mode==="three" && wallSelect.value==="front")wallSelect.value="back";
+  toast(mode==="three"?"Đang hiển thị phòng 3 mặt tường":"Đang hiển thị khối phòng 4 mặt");
+}
+threeBtn.addEventListener("click",()=>setMode("three"));
+fourBtn.addEventListener("click",()=>setMode("four"));
+
+function setCamera(mode){
+  cameraMode=mode;
+  frontBtn.classList.toggle("active",mode==="front");
+  orbitBtn.classList.toggle("active",mode==="orbit");
+  document.getElementById("viewStatus").textContent=mode==="front"?"GÓC NHÌN TRỰC DIỆN":"GÓC NHÌN 360°";
+  if(mode==="front"){
+    controls.enabled=false;
+    camera.position.set(0,4.3,18.5);
+    controls.target.set(0,3.3,0);
+    camera.lookAt(0,3.3,0);
+  }else{
+    controls.enabled=true;
+    camera.position.set(0,4.4,17.8);
+    controls.target.set(0,3.2,0);
+    controls.update();
+  }
+}
+frontBtn.addEventListener("click",()=>setCamera("front"));
+orbitBtn.addEventListener("click",()=>setCamera("orbit"));
+document.getElementById("resetBtn").addEventListener("click",()=>setCamera(cameraMode));
+
+function clearWall(key){
+  const wall=wallMeshes[key];
+  const old=uploadedTextures[key];
+  if(old){old.dispose();delete uploadedTextures[key];}
+  wall.panel.material=wall.baseMaterial;
+  wall.panel.material.needsUpdate=true;
+  toast("Đã khôi phục bức tường mặc định");
+}
+imageInput.addEventListener("change",event=>{
+  const file=event.target.files && event.target.files[0];
+  if(!file)return;
+  if(!file.type.startsWith("image/")){toast("Vui lòng chọn tệp hình ảnh.");return;}
+  const key=wallSelect.value;
+  if(key==="front" && roomMode!=="four"){toast("Hãy bật chế độ 4 mặt để chọn mặt trước.");return;}
+  const url=URL.createObjectURL(file);
+  const loader=new THREE.TextureLoader();
+  loader.load(url,texture=>{
+    texture.colorSpace=THREE.SRGBColorSpace;
+    texture.anisotropy=renderer.capabilities.getMaxAnisotropy();
+    texture.wrapS=THREE.ClampToEdgeWrapping;
+    texture.wrapT=THREE.ClampToEdgeWrapping;
+    // Fill the wall while preserving image proportions (center crop).
+    const imageAspect=texture.image.width/texture.image.height;
+    const wall=wallMeshes[key];
+    const wallAspect=key==="left"||key==="right"?D/H:W/H;
+    if(imageAspect>wallAspect){
+      const repeatX=wallAspect/imageAspect;
+      texture.repeat.set(repeatX,1);
+      texture.offset.set((1-repeatX)/2,0);
+    }else{
+      const repeatY=imageAspect/wallAspect;
+      texture.repeat.set(1,repeatY);
+      texture.offset.set(0,(1-repeatY)/2);
+    }
+    const material=new THREE.MeshStandardMaterial({
+      map:texture,roughness:.83,metalness:.02,side:THREE.DoubleSide,
+      transparent:key==="front",opacity:key==="front"?.94:1
+    });
+    const previous=uploadedTextures[key];
+    if(previous)previous.dispose();
+    uploadedTextures[key]=texture;
+    wall.panel.material=material;
+    wall.panel.material.needsUpdate=true;
+    URL.revokeObjectURL(url);
+    toast("Đã thay ảnh cho "+wallSelect.options[wallSelect.selectedIndex].text);
+  },undefined,()=>{
+    URL.revokeObjectURL(url);toast("Không đọc được ảnh. Hãy thử tệp JPG hoặc PNG.");
+  });
+  event.target.value="";
+});
+document.getElementById("clearBtn").addEventListener("click",()=>clearWall(wallSelect.value));
+
+function resize(){
+  const width=stage.clientWidth,height=stage.clientHeight;
+  if(!width||!height)return;
+  camera.aspect=width/height;
+  camera.updateProjectionMatrix();
+  renderer.setSize(width,height,false);
+}
+const resizeObserver=new ResizeObserver(resize);
+resizeObserver.observe(stage);
+window.addEventListener("orientationchange",()=>setTimeout(resize,150));
+resize();
+
+function animate(){
+  requestAnimationFrame(animate);
+  if(cameraMode==="orbit")controls.update();
+  decorativeObjects.forEach(obj=>{if(obj.userData.free)obj.quaternion.copy(camera.quaternion);});
+  renderer.render(scene,camera);
+}
+animate();
+
+setMode("three");
+setCamera("orbit");
+</script>
+</body>
+</html>
